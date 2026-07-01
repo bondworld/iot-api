@@ -1,27 +1,41 @@
 const express = require('express')
 const cors = require('cors')
 const app = express()
-
 app.use(cors())
 app.use(express.json())
 
-let learnCount = 1386
+const onlineUsers = new Map()
+const EXPIRE_TIME = 30 * 1000
 
-app.get('/api/count', (req, res) => {
-  res.json({ success: true, count: learnCount })
+setInterval(() => {
+  const now = Date.now()
+  for (const [uid, lastTime] of onlineUsers) {
+    if (now - lastTime > EXPIRE_TIME) {
+      onlineUsers.delete(uid)
+    }
+  }
+}, 5000)
+
+app.post('/api/online/enter', (req, res) => {
+  const { uid } = req.body
+  if (!uid) return res.send({ success: false, msg: '缺少uid' })
+  onlineUsers.set(uid, Date.now())
+  res.send({ success: true, online: onlineUsers.size })
 })
 
-app.post('/api/count', (req, res) => {
-  const add = req.body.add || Math.floor(Math.random() * 8) + 2
-  learnCount += add
-  res.json({ success: true, count: learnCount, added: add })
+app.post('/api/online/heart', (req, res) => {
+  const { uid } = req.body
+  if (onlineUsers.has(uid)) {
+    onlineUsers.set(uid, Date.now())
+  }
+  res.send({ success: true, online: onlineUsers.size })
 })
 
-app.get('/', (req, res) => {
-  res.send(`IoT安全科普后端 API<br>当前学习人数: ${learnCount}`)
+app.get('/api/online', (req, res) => {
+  res.send({ success: true, online: onlineUsers.size })
 })
 
-const PORT = process.env.PORT || 3000
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+const port = process.env.PORT || 3000
+app.listen(port, () => {
+  console.log('服务启动', port)
 })
